@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
-import { MessageCircleIcon, MailIcon, LoaderIcon, LockIcon } from "lucide-react";
+import { MessageCircleIcon, PhoneIcon, LoaderIcon, LockIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Link } from "react-router";
 
 function LoginPage() {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ phoneNumber: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const { login, isLoggingIn } = useAuthStore();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    login(formData);
+    const formattedPhone = formData.phoneNumber.startsWith("+") 
+      ? formData.phoneNumber 
+      : `+91${formData.phoneNumber}`;
+    login({ ...formData, phoneNumber: formattedPhone });
   };
 
   return (
@@ -30,18 +34,19 @@ function LoginPage() {
 
                 {/* FORM */}
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* EMAIL INPUT */}
+                  {/* PHONE NUMBER INPUT */}
                   <div>
-                    <label className="auth-input-label">Email</label>
+                    <label className="auth-input-label">Phone Number</label>
                     <div className="relative">
-                      <MailIcon className="auth-input-icon" />
-
+                      <PhoneIcon className="auth-input-icon" />
+                      <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-300 font-medium">+91</span>
                       <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        type="tel"
+                        value={formData.phoneNumber}
+                        onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                         className="input"
-                        placeholder="johndoe@gmail.com"
+                        style={{ paddingLeft: '74px' }}
+                        placeholder="9209100688"
                       />
                     </div>
                   </div>
@@ -53,12 +58,23 @@ function LoginPage() {
                       <LockIcon className="auth-input-icon" />
 
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="input"
                         placeholder="Enter your password"
                       />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOffIcon className="size-5" />
+                        ) : (
+                          <EyeIcon className="size-5" />
+                        )}
+                      </button>
                     </div>
                   </div>
 

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router";
 import ChatPage from "./pages/ChatPage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
+import OtpPage from "./pages/OtpPage";
 import { useAuthStore } from "./store/useAuthStore";
 import { useEffect } from "react";
 import PageLoader from "./components/PageLoader";
@@ -9,7 +10,7 @@ import PageLoader from "./components/PageLoader";
 import { Toaster } from "react-hot-toast";
 
 function App() {
-  const { checkAuth, isCheckingAuth, authUser } = useAuthStore();
+  const { checkAuth, isCheckingAuth, authUser, pendingVerification } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
@@ -26,8 +27,9 @@ function App() {
 
       <Routes>
         <Route path="/" element={authUser ? <ChatPage /> : <Navigate to={"/login"} />} />
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to={"/"} />} />
-        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />} />
+        <Route path="/login" element={!authUser ? (pendingVerification ? <Navigate to="/verify-otp" /> : <LoginPage />) : <Navigate to={"/"} />} />
+        <Route path="/signup" element={!authUser ? (pendingVerification ? <Navigate to="/verify-otp" /> : <SignUpPage />) : <Navigate to={"/"} />} />
+        <Route path="/verify-otp" element={!authUser && pendingVerification ? <OtpPage /> : <Navigate to={"/"} />} />
       </Routes>
 
       <Toaster />

@@ -7,9 +7,11 @@ const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:3000
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
+  pendingVerification: null,
   isCheckingAuth: true,
   isSigningUp: false,
   isLoggingIn: false,
+  isVerifyingOtp: false,
   socket: null,
   onlineUsers: [],
 
@@ -30,12 +32,10 @@ export const useAuthStore = create((set, get) => ({
     set({ isSigningUp: true });
     try {
       const res = await axiosInstance.post("/auth/signup", data);
-      set({ authUser: res.data });
-
-      toast.success("Account created successfully!");
-      get().connectSocket();
+      set({ pendingVerification: res.data.phoneNumber });
+      toast.success("OTP sent to your phone number!");
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Network error: Backend server is offline.");
     } finally {
       set({ isSigningUp: false });
     }
@@ -45,15 +45,26 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
-      set({ authUser: res.data });
-
-      toast.success("Logged in successfully");
-
-      get().connectSocket();
+      set({ pendingVerification: res.data.phoneNumber });
+      toast.success("OTP sent to your phone number!");
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Network error: Backend server is offline.");
     } finally {
       set({ isLoggingIn: false });
+    }
+  },
+
+  verifyOtp: async (data) => {
+    set({ isVerifyingOtp: true });
+    try {
+      const res = await axiosInstance.post("/auth/verify-otp", data);
+      set({ authUser: res.data, pendingVerification: null });
+      toast.success("Verified successfully!");
+      get().connectSocket();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify OTP");
+    } finally {
+      set({ isVerifyingOtp: false });
     }
   },
 

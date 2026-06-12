@@ -1,4 +1,4 @@
-import { sendWelcomeEmail } from "../emails/emailHandlers.js";
+import { sendOTP, verifyOTP } from "../sms/smsHandlers.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
@@ -6,10 +6,10 @@ import { ENV } from "../lib/env.js";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, phoneNumber, password } = req.body;
 
   try {
-    if (!fullName || !email || !password) {
+    if (!fullName || !phoneNumber || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -17,14 +17,14 @@ export const signup = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // check if emailis valid: regex
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format" });
+    // Basic phone number validation
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return res.status(400).json({ message: "Invalid phone number format" });
     }
 
-    const user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Email already exists" });
+    const user = await User.findOne({ phoneNumber });
+    if (user) return res.status(400).json({ message: "Phone number already exists" });
 
     // 123456 => $dnjasdkasj_?dmsakmk
     const salt = await bcrypt.genSalt(10);
@@ -32,7 +32,7 @@ export const signup = async (req, res) => {
 
     const newUser = new User({
       fullName,
-      email,
+      phoneNumber,
       password: hashedPassword,
     });
 
@@ -42,21 +42,15 @@ export const signup = async (req, res) => {
       // await newUser.save();
 
       // after CR:
-      // Persist user first, then issue auth cookie
+      // Persist user first, but don't issue auth cookie yet
       const savedUser = await newUser.save();
-      generateToken(savedUser._id, res);
-
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-      });
 
       try {
-        await sendWelcomeEmail(savedUser.email, savedUser.fullName, ENV.CLIENT_URL);
+        await sendOTP(savedUser.phoneNumber);
+        res.status(200).json({ message: "OTP sent", phoneNumber: savedUser.phoneNumber });
       } catch (error) {
-        console.error("Failed to send welcome email:", error);
+        console.error("Failed to send OTP:", error);
+        res.status(500).json({ message: "Failed to send OTP" });
       }
     } else {
       res.status(400).json({ message: "Invalid user data" });
@@ -68,28 +62,28 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { phoneNumber, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+  if (!phoneNumber || !password) {
+    return res.status(400).json({ message: "Phone number and password are required" });
   }
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ phoneNumber });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
-    // never tell the client which one is incorrect: password or email
+    // never tell the client which one is incorrect: password or phone number
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid credentials" });
 
-    generateToken(user._id, res);
-
-    res.status(200).json({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      profilePic: user.profilePic,
-    });
+    // Generate OTP instead of logging in directly
+    try {
+      await sendOTP(user.phoneNumber);
+      res.status(200).json({ message: "OTP sent", phoneNumber: user.phoneNumber });
+    } catch (error) {
+      console.error("Failed to send OTP:", error);
+      res.status(500).json({ message: "Failed to send OTP" });
+    }
   } catch (error) {
     console.error("Error in login controller:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -119,6 +113,38 @@ export const updateProfile = async (req, res) => {
     res.status(200).json(updatedUser);
   } catch (error) {
     console.log("Error in update profile:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const verifyOTPController = async (req, res) => {
+  const { phoneNumber, otp } = req.body;
+
+  if (!phoneNumber || !otp) {
+    return res.status(400).json({ message: "Phone number and OTP are required" });
+  }
+
+  try {
+    const isValid = await verifyOTP(phoneNumber, otp);
+    if (!isValid) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    const user = await User.findOne({ phoneNumber });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      phoneNumber: user.phoneNumber,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.error("Error in verifyOTP controller:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

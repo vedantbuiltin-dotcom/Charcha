@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
-import { MessageCircleIcon, LockIcon, MailIcon, UserIcon, LoaderIcon } from "lucide-react";
+import { MessageCircleIcon, LockIcon, PhoneIcon, UserIcon, LoaderIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Link } from "react-router";
 
 function SignUpPage() {
-  const [formData, setFormData] = useState({ fullName: "", email: "", password: "" });
+  const [formData, setFormData] = useState({ fullName: "", phoneNumber: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const { signup, isSigningUp } = useAuthStore();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    signup(formData);
+    const formattedPhone = formData.phoneNumber.startsWith("+") 
+      ? formData.phoneNumber 
+      : `+91${formData.phoneNumber}`;
+    signup({ ...formData, phoneNumber: formattedPhone });
   };
 
   return (
@@ -46,18 +50,19 @@ function SignUpPage() {
                     </div>
                   </div>
 
-                  {/* EMAIL INPUT */}
+                  {/* PHONE NUMBER INPUT */}
                   <div>
-                    <label className="auth-input-label">Email</label>
+                    <label className="auth-input-label">Phone Number</label>
                     <div className="relative">
-                      <MailIcon className="auth-input-icon" />
-
+                      <PhoneIcon className="auth-input-icon" />
+                      <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-300 font-medium">+91</span>
                       <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        type="tel"
+                        value={formData.phoneNumber}
+                        onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                         className="input"
-                        placeholder="johndoe@gmail.com"
+                        style={{ paddingLeft: '74px' }}
+                        placeholder="9209100688"
                       />
                     </div>
                   </div>
@@ -69,12 +74,23 @@ function SignUpPage() {
                       <LockIcon className="auth-input-icon" />
 
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className="input"
                         placeholder="Enter your password"
                       />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOffIcon className="size-5" />
+                        ) : (
+                          <EyeIcon className="size-5" />
+                        )}
+                      </button>
                     </div>
                   </div>
 
